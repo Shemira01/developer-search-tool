@@ -15,10 +15,10 @@ const repoSearchSchema = z.object({
   minStars: z.number().int().min(0).default(0),
 });
 
-// Define an interface to safely type the unpatched SDK
-type BountylabWithRepos = {
-  repositories?: {
-    search: (args: { query: string; language?: string; minStars: number; limit: number }) => Promise<unknown>
+// We dive into the object to define the exact search method we found
+type BountylabReal = {
+  searchRepos: {
+    search: (args: { query: string; language?: string; minStars?: number; limit?: number }) => Promise<unknown>
   }
 };
 
@@ -38,12 +38,14 @@ export async function searchRepositories(rawInput: unknown) {
   const { query, language, minStars } = parsed.data;
 
   try {
-    const bountyInstance = bounty as unknown as BountylabWithRepos;
-    if (!bountyInstance.repositories) {
-      throw new Error("Repositories method not available on SDK");
+    const bountyInstance = bounty as unknown as BountylabReal;
+    
+    if (!bountyInstance.searchRepos?.search) {
+      throw new Error("searchRepos.search method not available on SDK");
     }
 
-    const response = await bountyInstance.repositories.search({
+    // Calling the REAL search method!
+    const response = await bountyInstance.searchRepos.search({
       query,
       language: language || undefined,
       minStars,

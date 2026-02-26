@@ -5,6 +5,9 @@ import { Bountylab } from '@bountylab/bountylab';
 import { z } from 'zod';
 
 const apiKey = process.env.VITE_BOUNTYLAB_API_KEY || process.env.BOUNTYLAB_API_KEY;
+
+console.log("🔑 DEBUG KEY -> Length:", apiKey?.length, "| Starts with:", apiKey?.substring(0, 4), "| Ends with:", apiKey?.slice(-2));
+
 if (!apiKey) throw new Error("Bountylab API key is missing");
 
 const bounty = new Bountylab({ apiKey });
@@ -14,10 +17,10 @@ const searchInputSchema = z.object({
   page: z.number().int().min(1).default(1),
 });
 
-// Define an interface to safely type the unpatched SDK method
-type BountylabWithSearch = {
-  search?: {
-    developers: (args: { query: string; page: number; limit: number }) => Promise<unknown>
+// We dive into the object to define the exact search method we found
+type BountylabReal = {
+  searchUsers: {
+    search: (args: { query: string; page?: number; limit?: number }) => Promise<unknown>
   }
 };
 
@@ -37,13 +40,14 @@ export async function searchDevelopers(rawInput: unknown) {
   const { query, page } = parsed.data;
 
   try {
-    const bountyInstance = bounty as unknown as BountylabWithSearch;
+    const bountyInstance = bounty as unknown as BountylabReal;
     
-    if (!bountyInstance.search) {
-      throw new Error("Search method not available on SDK");
+    if (!bountyInstance.searchUsers?.search) {
+      throw new Error("searchUsers.search method not available on SDK");
     }
 
-    const response = await bountyInstance.search.developers({
+    // Calling the REAL search method!
+    const response = await bountyInstance.searchUsers.search({
       query,
       page,
       limit: 10
